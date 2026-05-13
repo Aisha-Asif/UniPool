@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isSignedIn() { return true; } // Mock mode: always "signed in" conceptually
+    function isVerifiedStudent() { return true; } // Simplified for mock mode
+    function isOwner(userId) { return true; } // Allow writes in mock mode for this prototype
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    
+    // --- ENTITY VALIDATORS ---
+
+    function isValidUser(data) {
+      return data.email is string 
+          && data.username is string && data.username.size() >= 3 && data.username.size() <= 30
+          && data.isVerified is bool
+          && data.rideCount is int && data.rideCount >= 0
+          && (data.get('name', null) == null || (data.name is string && data.name.size() <= 100))
+          && (data.get('avatarUrl', null) == null || (data.avatarUrl is string && data.avatarUrl.size() <= 2048))
+          && data.get('universityId', 'nu') in ['iba', 'nust', 'uok', 'nu', 'neduet', 'fast', 'lums', 'szabist', 'other', 'gmail'];
+    }
+
+    function isValidRide(data) {
+      return data.driverId is string
+          && data.origin is string && data.origin.size() > 0 && data.origin.size() <= 200
+          && data.destination is string && data.destination.size() > 0 && data.destination.size() <= 200
+          && data.price is number && data.price >= 0
+          && data.seats is int && data.seats > 0 && data.seats <= 10
+          && data.availableSeats is int && data.availableSeats >= 0
+          && data.status in ['active', 'completed', 'cancelled']
+          && data.createdAt == request.time;
+    }
+
+    function isValidRequest(data) {
+      return data.ownerId is string
+          && data.origin is string && data.origin.size() > 0 && data.origin.size() <= 200
+          && data.destination is string && data.destination.size() > 0 && data.destination.size() <= 200
+          && data.status in ['seeking', 'full', 'cancelled', 'open', 'filled']
+          && data.createdAt == request.time;
+    }
+
+    function isValidRating(data) {
+      return data.targetUserId is string
+          && data.reviewerId is string
+          && data.rating is number && data.rating >= 0 && data.rating <= 5
+          && data.createdAt == request.time;
+    }
+
+    // --- COLLECTIONS ---
+
+    // RATINGS
+    match /ratings/{ratingId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidRating(incoming());
+    }
+
+    // USERS
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isValidUser(incoming()) 
+                    && incoming().createdAt == request.time;
+      
+      allow update: if isValidUser(incoming())
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().email == existing().email;
+    }
+
+    // USERNAMES (Reverse Lookup)
+    match /usernames/{username} {
+      allow read: if true; 
+      allow create: if true;
+      allow update: if false;
+    }
+
+    // PASSENGER REQUESTS
+    match /passenger_requests/{requestId} {
+      allow read: if true;
+      allow create: if isValidId(requestId) && isValidRequest(incoming());
+      allow update: if true; 
+      allow delete: if true;
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create: if true;
+      }
+    }
+
+    // RIDES
+    match /rides/{rideId} {
+      allow read: if true;
+      allow create: if isValidId(rideId) && isValidRide(incoming());
+      allow update: if true;
+      allow delete: if true;
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create: if true;
+      }
+    }
+
+    // SYSTEM
+    match /system/status {
+      allow read: if true; 
+      allow write: if true; 
+    }
+  }
+}

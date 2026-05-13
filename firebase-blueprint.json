@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with university verification.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "universityId": { "type": "string", "enum": ["iba", "nust", "uok", "nu", "neduet", "fast"] },
+        "isVerified": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "rideCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "username", "name", "universityId", "isVerified"]
+    },
+    "RideOffer": {
+      "title": "Ride Offer",
+      "description": "A ride offered by a student.",
+      "type": "object",
+      "properties": {
+        "driverId": { "type": "string" },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "departureTime": { "type": "string", "format": "date-time" },
+        "price": { "type": "number" },
+        "seats": { "type": "number" },
+        "availableSeats": { "type": "number" },
+        "vehicle": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["driverId", "origin", "destination", "price", "seats"]
+    },
+    "RideRequest": {
+      "title": "Ride Request",
+      "description": "A ride request for pooling.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string" },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "preferredTime": { "type": "string", "format": "date-time" },
+        "joinerIds": { "type": "array", "items": { "type": "string" } },
+        "acceptedIds": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["seeking", "full", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "origin", "destination"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profile document."
+    },
+    "usernames/{username}": {
+      "schema": { "type": "object", "properties": { "uid": { "type": "string" } } },
+      "description": "Reverse lookup for usernames."
+    },
+    "rides/{rideId}": {
+      "schema": "RideOffer",
+      "description": "Ride offers collection."
+    },
+    "requests/{requestId}": {
+      "schema": "RideRequest",
+      "description": "Ride requests collection."
+    }
+  }
+}
